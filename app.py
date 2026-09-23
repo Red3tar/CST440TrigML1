@@ -7,6 +7,7 @@ user, runs inference, and shows the predicted sin(x) and cos(x) next to the true
   python app.py                                 # interactive (enter angles in degrees)
   python app.py --test                          # edge cases + accuracy/size/speed report
   python app.py --model trig_model_int8.tflite  # try the quantized model
+  python app.py --data testdata.csv             # score on the test dataset (make_testdata.py)
 """
 import argparse
 import os
@@ -135,10 +136,36 @@ def run_tests(model):
     print(f"  Avg inference time: {per_call_ms:.4f} ms per call (on this computer)")
 
 
+def run_dataset(model, path):
+    """Score the model on a CSV made by make_testdata.py (category, degrees, x, sin_x, cos_x)."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Test data not found: {path} (run make_testdata.py first)")
+    data = np.genfromtxt(path, delimiter=",", names=True, dtype=None, encoding="utf-8")
+
+    preds = np.array([model.predict(x) for x in data["x"]])
+    truth = np.column_stack([data["sin_x"], data["cos_x"]])
+    errors = np.abs(preds - truth)
+    distance = np.linalg.norm(preds - truth, axis=1)
+
+    print(f"\n=== Test dataset: {path} ({len(data)} rows) on {model.path} ===")
+    print(f"{'Category':<10} {'rows':>5} | {'MAE sin':>8} {'MAE cos':>8} {'max err':>8} | {'accuracy':>8}")
+    categories = list(dict.fromkeys(data["category"]))   # keep file order
+    for cat in categories + ["ALL"]:
+        m = np.ones(len(data), bool) if cat == "ALL" else data["category"] == cat
+        print(f"{cat:<10} {m.sum():>5} | {errors[m, 0].mean():>8.5f} {errors[m, 1].mean():>8.5f} "
+              f"{errors[m].max():>8.5f} | {(1 - distance[m].mean() / 2) * 100:>7.2f}%")
+
+    print("\nWorst 5 rows:")
+    for i in np.argsort(errors.max(axis=1))[::-1][:5]:
+        print(f"  {data['category'][i]:<10} {data['degrees'][i]:>8g} deg | "
+              f"sin {preds[i, 0]:>8.5f} vs {truth[i, 0]:>8.5f} | cos {preds[i, 1]:>8.5f} vs {truth[i, 1]:>8.5f}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Trig function ML application (sin and cos)")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="path to a .tflite model")
     parser.add_argument("--test", action="store_true", help="run the edge-case/accuracy report")
+    parser.add_argument("--data", help="score the model on a test CSV (see make_testdata.py)")
     args = parser.parse_args()
 
     model = TrigModel(args.model)
@@ -146,7 +173,9 @@ def main():
 
     if args.test:
         run_tests(model)
-    else:
+    if args.data:
+        run_dataset(model, args.data)
+    if not (args.test or args.data):
         run_interactive(model)
 
 
