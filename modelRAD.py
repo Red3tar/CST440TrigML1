@@ -35,7 +35,7 @@ PATIENCE = 30
 SEED = 42
 
 CSV_PATH = "trigdataRAD.csv"             # 15-degree reference table from the instructor
-COMBINED_PATH = "trigdata.csv"  # combined dataset written out: x, sin_x, cos_x
+COMBINED_PATH = "testdata.csv"  # combined dataset written out: x, sin_x, cos_x
 KERAS_PATH = "trig_model.keras"
 TFLITE_PATH = "trig_model.tflite"
 TFLITE_INT8_PATH = "trig_model_int8.tflite"

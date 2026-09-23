@@ -16,7 +16,7 @@ import time
 import numpy as np
 import tensorflow as tf
 
-DEFAULT_MODEL = "trig_model.tflite"
+DEFAULT_MODEL = "trig_model_int8.tflite"
 TWO_PI = 2 * np.pi
 
 
